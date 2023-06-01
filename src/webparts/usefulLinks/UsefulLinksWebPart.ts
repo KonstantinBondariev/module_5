@@ -3,6 +3,7 @@ import * as ReactDom from 'react-dom';
 import { Version } from '@microsoft/sp-core-library';
 import {
   IPropertyPaneConfiguration,
+  PropertyPaneDropdown,
   PropertyPaneTextField,
 } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
@@ -18,11 +19,13 @@ import '@pnp/sp/items';
 
 export interface IUsefulLinksWebPartProps {
   description: string;
+  list: string;
 }
 
 export default class UsefulLinksWebPart extends BaseClientSideWebPart<IUsefulLinksWebPartProps> {
-  // private _isDarkTheme: boolean = false;
-  // private _environmentMessage: string = '';
+  private _isDarkTheme: boolean = false;
+  public sharepointLists: { key: string; text: string }[] = [];
+
   public render(): void {
     const element: React.ReactElement<IUsefulLinksProps> = React.createElement(
       UsefulLinks,
@@ -30,10 +33,8 @@ export default class UsefulLinksWebPart extends BaseClientSideWebPart<IUsefulLin
         description: this.properties.description,
         title: '',
         context: this.context,
-        // isDarkTheme: this._isDarkTheme,
-        // environmentMessage: this._environmentMessage,
-        // hasTeamsContext: !!this.context.sdks.microsoftTeams,
-        // userDisplayName: this.context.pageContext.user.displayName,
+        isDarkTheme: this._isDarkTheme,
+        list: this.properties.list,
       }
     );
 
@@ -44,48 +45,21 @@ export default class UsefulLinksWebPart extends BaseClientSideWebPart<IUsefulLin
     await super.onInit();
     const sp = spfi().using(SPFx(this.context));
     console.log(sp);
-
-    return this._getEnvironmentMessage().then((message) => {
-      // this._environmentMessage = message;
-    });
+    this.loadLists();
   }
 
-  private _getEnvironmentMessage(): Promise<string> {
-    if (!!this.context.sdks.microsoftTeams) {
-      // running in Teams, office.com or Outlook
-      return this.context.sdks.microsoftTeams.teamsJs.app
-        .getContext()
-        .then((context) => {
-          let environmentMessage: string = '';
-          switch (context.app.host.name) {
-            case 'Office': // running in Office
-              environmentMessage = this.context.isServedFromLocalhost
-                ? strings.AppLocalEnvironmentOffice
-                : strings.AppOfficeEnvironment;
-              break;
-            case 'Outlook': // running in Outlook
-              environmentMessage = this.context.isServedFromLocalhost
-                ? strings.AppLocalEnvironmentOutlook
-                : strings.AppOutlookEnvironment;
-              break;
-            case 'Teams': // running in Teams
-              environmentMessage = this.context.isServedFromLocalhost
-                ? strings.AppLocalEnvironmentTeams
-                : strings.AppTeamsTabEnvironment;
-              break;
-            default:
-              throw new Error('Unknown host');
-          }
+  private async loadLists() {
+    try {
+      const sp = spfi().using(SPFx(this.context));
+      const lists = await sp.web.lists();
 
-          return environmentMessage;
-        });
+      this.sharepointLists = lists.map((item) => ({
+        key: item.Id,
+        text: item.Title,
+      }));
+    } catch (error) {
+      console.log('Ошибка при загрузке данных:', error);
     }
-
-    return Promise.resolve(
-      this.context.isServedFromLocalhost
-        ? strings.AppLocalEnvironmentSharePoint
-        : strings.AppSharePointEnvironment
-    );
   }
 
   protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
@@ -93,7 +67,7 @@ export default class UsefulLinksWebPart extends BaseClientSideWebPart<IUsefulLin
       return;
     }
 
-    // this._isDarkTheme = !!currentTheme.isInverted;
+    this._isDarkTheme = !!currentTheme.isInverted;
     const { semanticColors } = currentTheme;
 
     if (semanticColors) {
@@ -130,6 +104,10 @@ export default class UsefulLinksWebPart extends BaseClientSideWebPart<IUsefulLin
               groupFields: [
                 PropertyPaneTextField('description', {
                   label: strings.DescriptionFieldLabel,
+                }),
+                PropertyPaneDropdown('list', {
+                  label: 'Выберите список',
+                  options: this.sharepointLists,
                 }),
               ],
             },

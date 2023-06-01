@@ -22,7 +22,8 @@
     "description": { "default": "useful links description" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "useful links"
+      "description": "useful links",
+      "list:": {"key":"76d358d9-6222-449b-8e78-963f6671039b", "text": "UsefulLinks2"}
     }
   }]
 }
